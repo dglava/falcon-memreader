@@ -275,7 +275,7 @@ def read_shared_memory_strings():
         sm.close()
         return instance
     except Exception as e:
-        print("Error reading shared memory '{name}': {e}".format(Strings.name, e))
+        print("Error reading shared memory '{}': {}".format(Strings.name, e))
         return None
 
 def examples():
