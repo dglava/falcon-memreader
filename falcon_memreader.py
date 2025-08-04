@@ -179,6 +179,21 @@ class FlightData2(ctypes.Structure):
         ("iffTransponderActiveCode4", ctypes.c_short),
         ]
 
+class OsbLabel(ctypes.Structure):
+    _fields_ = [
+        ("line1", ctypes.c_char * 8),
+        ("line2", ctypes.c_char * 8),
+        ("inverted", ctypes.c_bool),
+        ("_padding", ctypes.c_char * 7) # For 24 byte padding
+    ]
+
+class OSBData(ctypes.Structure):
+    name = "FalconSharedOsbMemoryArea"
+    _fields_ = [
+        ("leftMFD", OsbLabel * 20),
+        ("rightMFD", OsbLabel * 20)
+    ]
+
 class IntellivibeData(ctypes.Structure):
     name = "FalconIntellivibeSharedMemoryArea"
     _fields_ = [
@@ -265,7 +280,7 @@ def read_shared_memory(structure):
         print("Error reading shared memory '{}': {}".format(structure.name, e))
         return None
 
-def read_shared_memory_strings() -> StringData:
+def read_shared_memory_stringdata() -> StringData:
     try:
         sm = mmap.mmap(-1, StringData.area_size_max, StringData.name, access=mmap.ACCESS_READ)
         instance = StringData()
@@ -287,7 +302,8 @@ def examples():
     flightdata = read_shared_memory(FlightData)
     flightdata2 = read_shared_memory(FlightData2)
     intellivibe = read_shared_memory(IntellivibeData)
-    strings = read_shared_memory_strings()
+    strings = read_shared_memory_stringdata()
+    osb = read_shared_memory(OSBData)
     print(flightdata.VersionNum)
     print(flightdata2.caraAlow)
     print(intellivibe.In3D)
