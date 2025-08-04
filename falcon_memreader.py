@@ -225,7 +225,6 @@ class IntellivibeData(ctypes.Structure):
 # VERSION 5
 class StringData():
     name = "FalconSharedMemoryAreaString"
-    version_num = 0
     area_size_max = 1024 * 1024
     id = [
         "BmsExe",
@@ -269,6 +268,17 @@ class StringData():
     def add(self, id, value):
         setattr(self, id, value)
 
+# Version 1
+class DrawingData():
+    name = "FalconSharedMemoryAreaDrawing"
+    area_size_max = 1024 * 1024
+    id = [
+        "HUD_commands", "RWR_commands", "HMS_commands"
+        ]
+
+    def add(self, id, value):
+        setattr(self, id, value)
+
 def read_shared_memory(structure):
     try:
         sm = mmap.mmap(-1, ctypes.sizeof(structure), structure.name, access=mmap.ACCESS_READ)
@@ -283,10 +293,11 @@ def read_shared_memory(structure):
 def read_shared_memory_stringdata() -> StringData:
     try:
         sm = mmap.mmap(-1, StringData.area_size_max, StringData.name, access=mmap.ACCESS_READ)
-        instance = StringData()
-        instance.version_num = struct.unpack('I', sm.read(4))[0]
+        version_num = struct.unpack('I', sm.read(4))[0]
         num_strings = struct.unpack('I', sm.read(4))[0]
         data_size = struct.unpack('I', sm.read(4))[0]
+        instance = StringData()
+        instance.add("VersionNum", version_num)
         for id in StringData.id:
             str_id = struct.unpack('I', sm.read(4))[0]
             str_length = struct.unpack('I', sm.read(4))[0]
@@ -298,16 +309,35 @@ def read_shared_memory_stringdata() -> StringData:
         print("Error reading shared memory '{}': {}".format(StringData.name, e))
         return None
 
+def read_shared_memory_drawingdata() -> DrawingData:
+    try:
+        sm = mmap.mmap(-1, DrawingData.area_size_max, DrawingData.name, access=mmap.ACCESS_READ)
+        version_num = struct.unpack('I', sm.read(4))[0]
+        instance = DrawingData()
+        instance.add("VersionNum", version_num)
+        for id in DrawingData.id:
+            str_length = struct.unpack('I', sm.read(4))[0]
+            str_data = sm.read(str_length + 1).decode('utf-8').rstrip('\x00')
+            instance.add(id, str_data)
+        sm.close()
+        return instance
+    except Exception as e:
+        print("Error reading shared memory '{}': {}".format(DrawingData.name, e))
+        return None
+
 def examples():
     flightdata = read_shared_memory(FlightData)
     flightdata2 = read_shared_memory(FlightData2)
     intellivibe = read_shared_memory(IntellivibeData)
     strings = read_shared_memory_stringdata()
     osb = read_shared_memory(OSBData)
+    drawingdata = read_shared_memory_drawingdata()
     print(flightdata.VersionNum)
     print(flightdata2.caraAlow)
     print(intellivibe.In3D)
     print(strings.BmsExe)
+    print(osb.leftMFD[0].inverted)
+    print(drawingdata.HUD_commands)
 
 if __name__ == "__main__":
     examples()
