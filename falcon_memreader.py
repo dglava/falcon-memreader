@@ -20,6 +20,7 @@ import ctypes
 import struct
 import mmap
 
+# VERSION 118
 class FlightData(ctypes.Structure):
     name = "FalconSharedMemoryArea"
     _fields_ = [
@@ -106,6 +107,7 @@ class FlightData(ctypes.Structure):
         ("MainPower", ctypes.c_int),
         ]
 
+# VERSION 22
 class FlightData2(ctypes.Structure):
     name = "FalconSharedMemoryArea2"
     _fields_ = [
@@ -177,6 +179,21 @@ class FlightData2(ctypes.Structure):
         ("iffTransponderActiveCode4", ctypes.c_short),
         ]
 
+class OsbLabel(ctypes.Structure):
+    _fields_ = [
+        ("line1", ctypes.c_char * 8),
+        ("line2", ctypes.c_char * 8),
+        ("inverted", ctypes.c_bool),
+        ("_padding", ctypes.c_char * 7) # For 24 byte padding
+    ]
+
+class OSBData(ctypes.Structure):
+    name = "FalconSharedOsbMemoryArea"
+    _fields_ = [
+        ("leftMFD", OsbLabel * 20),
+        ("rightMFD", OsbLabel * 20)
+    ]
+
 class IntellivibeData(ctypes.Structure):
     name = "FalconIntellivibeSharedMemoryArea"
     _fields_ = [
@@ -205,7 +222,8 @@ class IntellivibeData(ctypes.Structure):
         ("whendamage", ctypes.c_uint),
         ]
 
-class Strings():
+# VERSION 5
+class StringData():
     name = "FalconSharedMemoryAreaString"
     area_size_max = 1024 * 1024
     id = [
@@ -243,8 +261,20 @@ class Strings():
         "ButtonsFile",
         "CockpitFile",
         "NavPoint",
-        "ThrTerrdatadir"
+        "ThrTerrdatadir",
+        "VoiceHelpers"
     ]
+
+    def add(self, id, value):
+        setattr(self, id, value)
+
+# Version 1
+class DrawingData():
+    name = "FalconSharedMemoryAreaDrawing"
+    area_size_max = 1024 * 1024
+    id = [
+        "HUD_commands", "RWR_commands", "HMS_commands"
+        ]
 
     def add(self, id, value):
         setattr(self, id, value)
@@ -260,14 +290,15 @@ def read_shared_memory(structure):
         print("Error reading shared memory '{}': {}".format(structure.name, e))
         return None
 
-def read_shared_memory_strings():
+def read_shared_memory_stringdata() -> StringData:
     try:
-        sm = mmap.mmap(-1, Strings.area_size_max, Strings.name, access=mmap.ACCESS_READ)
+        sm = mmap.mmap(-1, StringData.area_size_max, StringData.name, access=mmap.ACCESS_READ)
         version_num = struct.unpack('I', sm.read(4))[0]
         num_strings = struct.unpack('I', sm.read(4))[0]
         data_size = struct.unpack('I', sm.read(4))[0]
-        instance = Strings()
-        for id in Strings.id:
+        instance = StringData()
+        instance.add("VersionNum", version_num)
+        for id in StringData.id:
             str_id = struct.unpack('I', sm.read(4))[0]
             str_length = struct.unpack('I', sm.read(4))[0]
             str_data = sm.read(str_length + 1).decode('utf-8').rstrip('\x00')
@@ -275,18 +306,38 @@ def read_shared_memory_strings():
         sm.close()
         return instance
     except Exception as e:
-        print("Error reading shared memory '{}': {}".format(Strings.name, e))
+        print("Error reading shared memory '{}': {}".format(StringData.name, e))
+        return None
+
+def read_shared_memory_drawingdata() -> DrawingData:
+    try:
+        sm = mmap.mmap(-1, DrawingData.area_size_max, DrawingData.name, access=mmap.ACCESS_READ)
+        version_num = struct.unpack('I', sm.read(4))[0]
+        instance = DrawingData()
+        instance.add("VersionNum", version_num)
+        for id in DrawingData.id:
+            str_length = struct.unpack('I', sm.read(4))[0]
+            str_data = sm.read(str_length + 1).decode('utf-8').rstrip('\x00')
+            instance.add(id, str_data)
+        sm.close()
+        return instance
+    except Exception as e:
+        print("Error reading shared memory '{}': {}".format(DrawingData.name, e))
         return None
 
 def examples():
     flightdata = read_shared_memory(FlightData)
     flightdata2 = read_shared_memory(FlightData2)
     intellivibe = read_shared_memory(IntellivibeData)
-    strings = read_shared_memory_strings()
+    strings = read_shared_memory_stringdata()
+    osb = read_shared_memory(OSBData)
+    drawingdata = read_shared_memory_drawingdata()
     print(flightdata.VersionNum)
     print(flightdata2.caraAlow)
     print(intellivibe.In3D)
     print(strings.BmsExe)
+    print(osb.leftMFD[0].inverted)
+    print(drawingdata.HUD_commands)
 
 if __name__ == "__main__":
     examples()
