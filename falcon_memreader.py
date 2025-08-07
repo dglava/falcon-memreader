@@ -177,6 +177,9 @@ class FlightData2(ctypes.Structure):
         ("iffTransponderActiveCode3A", ctypes.c_short),
         ("iffTransponderActiveCodeC", ctypes.c_short),
         ("iffTransponderActiveCode4", ctypes.c_short),
+        ("tacan_ils_frequency", ctypes.c_int),
+        ("desired_RTT_FPS", ctypes.c_int),
+        ("sideSlipdeg", ctypes.c_float),
         ]
 
 class OsbLabel(ctypes.Structure):
